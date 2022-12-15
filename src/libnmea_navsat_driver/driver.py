@@ -31,23 +31,29 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 import math
+import os
 
 import rclpy
-
+import utm
+import yaml
+from geometry_msgs.msg import TwistStamped, QuaternionStamped, Vector3
+from libnmea_navsat_driver import parser
+from libnmea_navsat_driver.checksum_utils import check_nmea_checksum
 from rclpy.node import Node
 from sensor_msgs.msg import NavSatFix, NavSatStatus, TimeReference
-from geometry_msgs.msg import TwistStamped, QuaternionStamped
 from tf_transformations import quaternion_from_euler
-from libnmea_navsat_driver.checksum_utils import check_nmea_checksum
-from libnmea_navsat_driver import parser
+from yaml.loader import SafeLoader
 
 
 class Ros2NMEADriver(Node):
     def __init__(self):
-        super().__init__('nmea_navsat_driver')
+        with open(os.getenv('ROS_WS') + '/vehicle.yaml') as f:
+            vehicle_parameters = yaml.load(f, Loader=SafeLoader)
+        super().__init__('nmea_navsat_driver')#, namespace=vehicle_parameters['id_vehicle'])
 
         self.fix_pub = self.create_publisher(NavSatFix, 'fix', 10)
         self.vel_pub = self.create_publisher(TwistStamped, 'vel', 10)
+        self.utm_pub = self.create_publisher(Vector3, '/gps/utm', 10)
         self.heading_pub = self.create_publisher(QuaternionStamped, 'heading', 10)
         self.time_ref_pub = self.create_publisher(TimeReference, 'time_reference', 10)
 
@@ -134,7 +140,7 @@ class Ros2NMEADriver(Node):
             current_time = timestamp
         else:
             current_time = self.get_clock().now().to_msg()
-
+        utm_msg = Vector3()
         current_fix = NavSatFix()
         current_fix.header.stamp = current_time
         current_fix.header.frame_id = frame_id
@@ -191,6 +197,11 @@ class Ros2NMEADriver(Node):
             current_fix.position_covariance[8] = (2 * hdop * self.alt_std_dev) ** 2  # FIXME
 
             self.fix_pub.publish(current_fix)
+            to_utm = utm.from_latlon(latitude, longitude)
+            utm_msg.x = float(to_utm[0])
+            utm_msg.y = float(to_utm[1])
+            utm_msg.z = float(to_utm[2])
+            self.utm_pub.publish(utm_msg)
 
             if not math.isnan(data['utc_time']):
                 current_time_ref.time_ref = rclpy.time.Time(seconds=data['utc_time']).to_msg()
@@ -273,6 +284,7 @@ class Ros2NMEADriver(Node):
             return False
 
     """Helper method for getting the frame_id with the correct TF prefix"""
+
     def get_frame_id(self):
         frame_id = self.declare_parameter('frame_id', 'gps').value
         prefix = self.declare_parameter('tf_prefix', '').value
