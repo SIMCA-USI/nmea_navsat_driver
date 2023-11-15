@@ -29,34 +29,42 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-
+from geographiclib.geodesic import Geodesic
 import math
+from math import atan2
 import os
-
 import rclpy
-import utm
 import yaml
 from geometry_msgs.msg import TwistStamped, QuaternionStamped, Vector3
 from libnmea_navsat_driver import parser
 from libnmea_navsat_driver.checksum_utils import check_nmea_checksum
 from rclpy.node import Node
 from sensor_msgs.msg import NavSatFix, NavSatStatus, TimeReference
+from std_msgs.msg import Float64
 from tf_transformations import quaternion_from_euler
 from yaml.loader import SafeLoader
 
 
 class Ros2NMEADriver(Node):
+    """
+    This class represents a ROS 2 node responsible for processing NMEA sentences and publishing related data.
+    """
+
     def __init__(self):
+        """
+        Constructor for the Ros2NMEADriver class.
+        """
         with open(os.getenv('ROS_WS') + '/vehicle.yaml') as f:
             vehicle_parameters = yaml.load(f, Loader=SafeLoader)
-        super().__init__('nmea_navsat_driver')#, namespace=vehicle_parameters['id_vehicle'])
+        super().__init__('nmea_navsat_driver', namespace=vehicle_parameters['id_vehicle'])
 
         self.fix_pub = self.create_publisher(NavSatFix, 'fix', 10)
         self.vel_pub = self.create_publisher(TwistStamped, 'vel', 10)
-        self.utm_pub = self.create_publisher(Vector3, '/gps/utm', 10)
         self.heading_pub = self.create_publisher(QuaternionStamped, 'heading', 10)
+        self.orientation_pub = self.create_publisher(Float64, 'orientation', 10)
+        self.orientation_two_p = self.create_publisher(Float64, 'orientation2p', 10)
+        self.dist_two_p = self.create_publisher(Float64, 'distance2p', 10)
         self.time_ref_pub = self.create_publisher(TimeReference, 'time_reference', 10)
-
         self.time_ref_source = self.declare_parameter('time_ref_source', 'gps').value
         self.use_RMC = self.declare_parameter('useRMC', False).value
         self.valid_fix = False
@@ -74,6 +82,7 @@ class Ros2NMEADriver(Node):
         self.lon_std_dev = float("nan")
         self.lat_std_dev = float("nan")
         self.alt_std_dev = float("nan")
+        self.last_lon_lat = None
 
         """Format for this dictionary is the fix type from a GGA message as the key, with
         each entry containing a tuple consisting of a default estimated
@@ -126,6 +135,18 @@ class Ros2NMEADriver(Node):
     # Returns True if we successfully did something with the passed in
     # nmea_string
     def add_sentence(self, nmea_string, frame_id, timestamp=None):
+        """
+        Add an NMEA sentence for processing.
+
+        :param nmea_string: NMEA sentence to be processed.
+        :type nmea_string: str
+        :param frame_id: Frame ID for the ROS messages.
+        :type frame_id: str
+        :param timestamp: Timestamp for the sentence (optional).
+        :type timestamp: None
+
+        :return: True if the sentence was successfully processed, False if there was an issue.
+        """
         if not check_nmea_checksum(nmea_string):
             self.get_logger().warn("Received a sentence with an invalid checksum. " +
                                    "Sentence was: %s" % nmea_string)
@@ -197,11 +218,24 @@ class Ros2NMEADriver(Node):
             current_fix.position_covariance[8] = (2 * hdop * self.alt_std_dev) ** 2  # FIXME
 
             self.fix_pub.publish(current_fix)
-            to_utm = utm.from_latlon(latitude, longitude)
-            utm_msg.x = float(to_utm[0])
-            utm_msg.y = float(to_utm[1])
-            utm_msg.z = float(to_utm[2])
-            self.utm_pub.publish(utm_msg)
+
+            if self.last_lon_lat is None:
+                self.last_lon_lat = (current_fix.longitude, current_fix.latitude)
+            else:
+                geo = Geodesic.WGS84.Inverse(self.last_lon_lat[1], self.last_lon_lat[0],
+                                              current_fix.latitude, current_fix.longitude)
+                brng = geo['azi1']
+                dist = geo['s12']
+
+                if brng < 0:
+                    brng += 360
+                orient = Float64()
+                orient.data = brng
+                distance=Float64()
+                distance.data = dist
+                self.orientation_two_p.publish(orient)
+                self.dist_two_p.publish(distance)
+                self.last_lon_lat = (current_fix.longitude, current_fix.latitude)
 
             if not math.isnan(data['utc_time']):
                 current_time_ref.time_ref = rclpy.time.Time(seconds=data['utc_time']).to_msg()
@@ -280,12 +314,22 @@ class Ros2NMEADriver(Node):
                 current_heading.quaternion.z = q[2]
                 current_heading.quaternion.w = q[3]
                 self.heading_pub.publish(current_heading)
+                orientation = Float64()
+                orientation.data = 2 * atan2(q[2], q[3])
+                orientation.data = math.degrees(orientation.data)
+                self.orientation_pub.publish(orientation)
+
         else:
             return False
 
     """Helper method for getting the frame_id with the correct TF prefix"""
 
     def get_frame_id(self):
+        """
+        Get the frame ID.
+
+        :return: The frame ID.
+        """
         frame_id = self.declare_parameter('frame_id', 'gps').value
         prefix = self.declare_parameter('tf_prefix', '').value
         if len(prefix):

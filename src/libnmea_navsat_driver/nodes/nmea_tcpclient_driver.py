@@ -19,6 +19,7 @@ import rclpy
 
 from libnmea_navsat_driver.driver import Ros2NMEADriver
 
+
 def main(args=None):
     rclpy.init(args=args)
     driver = Ros2NMEADriver()
@@ -78,6 +79,5 @@ def main(args=None):
                 driver.get_logger().error("Caught exception socket.error when receiving: %s" % exc)
                 gnss_socket.close()
                 break
-
 
         gnss_socket.close()

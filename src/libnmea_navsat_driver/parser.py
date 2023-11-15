@@ -35,6 +35,7 @@ import time
 import calendar
 import math
 import logging
+from sensors.gps.gps_topics import *
 
 logger = logging.getLogger('rosout')
 

@@ -31,9 +31,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 import serial
-
 import rclpy
-
 from libnmea_navsat_driver.driver import Ros2NMEADriver
 
 
@@ -52,9 +50,11 @@ def main(args=None):
         try:
             while rclpy.ok():
                 data = GPS.readline().strip()
+                driver.get_logger().info(f'{data}')
                 try:
                     if isinstance(data, bytes):
                         data = data.decode("utf-8")
+
                     driver.add_sentence(data, frame_id)
                 except ValueError as e:
                     driver.get_logger().warn(
@@ -67,3 +67,7 @@ def main(args=None):
             GPS.close()  # Close GPS serial port
     except serial.SerialException as ex:
         driver.get_logger().fatal("Could not open serial port: I/O error({0}): {1}".format(ex.errno, ex.strerror))
+
+
+if __name__ == '__main__':
+    main()
