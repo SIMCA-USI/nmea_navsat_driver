@@ -25,8 +25,8 @@ def main(args=None):
     driver = Ros2NMEADriver()
 
     try:
-        gnss_ip = driver.declare_parameter('ip', '192.168.131.22').value
-        gnss_port = driver.declare_parameter('port', 9001).value
+        gnss_ip = driver.declare_parameter('ip', '192.168.0.97').value
+        gnss_port = driver.declare_parameter('port', 5017).value
         buffer_size = driver.declare_parameter('buffer_size', 4096).value
     except KeyError as e:
         driver.get_logger().err("Parameter %s not found" % e)

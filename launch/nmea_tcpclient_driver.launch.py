@@ -24,7 +24,7 @@ from launch_ros import actions
 
 def generate_launch_description():
     """Generate a launch description for a single tcpclient driver."""
-    config_file = os.path.join(get_package_share_directory("nmea_navsat_driver"), "config", "nmea_tcpclient_driver.yaml")
+    config_file = os.path.join(get_package_share_directory("nmea_navsat_driver"), "conf", "nmea_tcpclient_driver.yaml")
     driver_node = actions.Node(
         package='nmea_navsat_driver',
         executable='nmea_tcpclient_driver',
