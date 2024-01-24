@@ -56,7 +56,7 @@ class Ros2NMEADriver(Node):
         """
         with open(os.getenv('ROS_WS') + '/vehicle.yaml') as f:
             vehicle_parameters = yaml.load(f, Loader=SafeLoader)
-        super().__init__('nmea_navsat_driver', namespace=vehicle_parameters['id_vehicle'])
+        super().__init__('nmea_navsat_driver', namespace=vehicle_parameters['id_vehicle']+'/gps')
 
         self.fix_pub = self.create_publisher(NavSatFix, 'fix', 10)
         self.vel_pub = self.create_publisher(TwistStamped, 'vel', 10)

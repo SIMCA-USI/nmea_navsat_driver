@@ -5,6 +5,7 @@ import rclpy
 import os
 import yaml
 from yaml.loader import SafeLoader
+from rclpy.qos import HistoryPolicy
 
 
 class ParserNmeaFix(Node):
@@ -19,7 +20,7 @@ class ParserNmeaFix(Node):
         super().__init__(node_name='parser_nmea_fix', namespace=vehicle_parameters['id_vehicle'], allow_undeclared_parameters=True,
                          start_parameter_services=True, automatically_declare_parameters_from_overrides=True)
 
-        self.sub = self.create_subscription(String, 'gps/connect', self.callback_sub, 10)
+        self.sub = self.create_subscription(String, 'gps/connect', self.callback_sub, HistoryPolicy.RMW_QOS_POLICY_HISTORY_KEEP_ALL)
         self.logger = self.get_logger()
         self.driver = Ros2NMEADriver()
         self.frame_id = self.driver.get_frame_id()

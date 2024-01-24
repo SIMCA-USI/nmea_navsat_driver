@@ -19,6 +19,10 @@ from rclpy.node import Node
 from rclpy.parameter import Parameter
 from rclpy.qos import HistoryPolicy
 from sensors.gps.gps_topics import *
+
+
+
+from ros2_waypoints import *
 import os
 import yaml
 from yaml.loader import SafeLoader
@@ -189,7 +193,7 @@ class Ros2NMEA_UTMDriver(Node):
                     connected_nmea = True
                 else:
                     data = _socket_nmea.recv(1024)
-                    self.__process_nmea(data.decode(errors='replace'))
+                    self.__process_nmea_utm(data.decode(errors='replace'))
 
             except IOError as e:
                 if e.errno == errno.EPIPE:
