@@ -45,7 +45,7 @@ class Ros2NMEA_UTMDriver(Node):
         self.logger.set_level(self._log_level)
         self.__mode = self.get_parameter_or('gps_params.mode', Parameter(name='gps_params.mode', value='tcp')).value
         self.__ip = self.get_parameter_or('gps_params.ip',
-                                          Parameter(name='gps_params.ip', value='192.168.0.97')).value
+                                          Parameter(name='gps_params.ip', value='192.168.1.100')).value
         self.__port = self.get_parameter_or('gps_params.port', Parameter(name='gps_params.port', value=5017)).value
         self.__nmea_messages = self.get_parameter_or('gps_params.nmea_messages',
                                                      Parameter(name='gps_params.nmea_messages',
