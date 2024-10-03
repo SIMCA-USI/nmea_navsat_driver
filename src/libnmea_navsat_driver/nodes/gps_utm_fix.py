@@ -45,11 +45,11 @@ class Ros2NMEA_UTMDriver(Node):
         self.logger.set_level(self._log_level)
         self.__mode = self.get_parameter_or('gps_params.mode', Parameter(name='gps_params.mode', value='tcp')).value
         self.__ip = self.get_parameter_or('gps_params.ip',
-                                          Parameter(name='gps_params.ip', value='192.168.1.100')).value
+                                          Parameter(name='gps_params.ip', value='192.168.0.97')).value
         self.__port = self.get_parameter_or('gps_params.port', Parameter(name='gps_params.port', value=5017)).value
         self.__nmea_messages = self.get_parameter_or('gps_params.nmea_messages',
                                                      Parameter(name='gps_params.nmea_messages',
-                                                               value=['GGA', 'GSA', 'GST'])).value
+                                                               value=['GGA', 'GSA', 'GST', 'VTG'])).value
         self.__thread_connection = None
         self.active = True
         self.utm_pub = self.create_publisher(Vector3, 'utm', 10)
@@ -63,7 +63,7 @@ class Ros2NMEA_UTMDriver(Node):
         self.GPS_Heading = self.create_publisher(Float64,'heading/trimble', 10)
         self.GPS_RMS = self.create_publisher(Float64,'orientation_gps', 10)
         self.GPS_Date = self.create_publisher(String, 'date', 10)
-        self.GPS_Speed = self.create_publisher(Float64,'speed', 10)
+        self.GPS_Speed = self.create_publisher(Float64,'/gps/speed', 10)
         self.GPS_HDOP = self.create_publisher(Float64,'hdop', 10)
 
 
@@ -232,7 +232,7 @@ class Ros2NMEA_UTMDriver(Node):
         """
         This function takes both raw NMEA and UTM data string, processes them, and publishes them to a specific topic.
 
-        :param data: A string containing the raw NMEA data received from the GPS device.
+        :param data: A string containing the raw NMEA or UTM data received from the GPS device.
         :type data: str
         :return: None
         :raises pynmea2.ParseError: If an error occurs while parsing the NMEA data.
